@@ -6,4 +6,4 @@ def print_hi(name):
 
 
 if __name__ == '__main__':
-    pass
+    print('Hi Louis')
