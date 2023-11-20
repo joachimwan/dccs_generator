@@ -1,3 +1,5 @@
+# Settings for directory paths for source files.
+
 from pathlib import Path
 
 BASE_DIR = Path.cwd()
