@@ -1,4 +1,4 @@
-# Settings for directory paths for source files.
+# Settings for directory paths for data sources.
 
 from pathlib import Path
 
