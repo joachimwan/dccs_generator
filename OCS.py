@@ -18,4 +18,17 @@
 # - Well Name
 # - WBS Number
 
+# Charging mechanism:
+# - 'XX' unit/day 'daily/weekly/monthly' from 'start date/Phase' to 'end date/Phase' or 'XX occurrences'
+
 import openpyxl
+
+# Proposed workflow:
+# - For each OCS file in the OCS folder, read each OCS file.
+# - Use try-except to verify OCS validity and raise errors.
+# - Detect revisions and ensure revision does not impact charged items before Today.
+# -
+
+# Proposed verification:
+# - All required fields are present, e.g. OCS Number, WBS Number.
+# - WBS Number and Well Name (if present) are correct.
