@@ -21,6 +21,7 @@
 # Charging mechanism:
 # - 'XX' unit/day 'daily/weekly/monthly' from 'start date/Phase' to 'end date/Phase' or 'XX occurrences'
 
+import pandas as pd
 import openpyxl
 
 # Proposed workflow:

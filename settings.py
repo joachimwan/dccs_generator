@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path.cwd()
 
-LATEST_LOOKAHEAD_DIR = BASE_DIR.joinpath('lookahead', '230101_NTP_Lookahead')
+LATEST_LOOKAHEAD_DIR = BASE_DIR.joinpath('lookahead', '230101_Test_NTP_Lookahead.xlsm')
 
 OCS_DIR = BASE_DIR.joinpath('OCS')
 

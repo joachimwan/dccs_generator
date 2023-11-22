@@ -22,6 +22,7 @@
 # - PO number
 # - WBS number
 
+import pandas as pd
 import openpyxl
 
 # Proposed workflow:
