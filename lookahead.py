@@ -69,3 +69,13 @@ df_lookahead['Projection Time'] = df_lookahead['Actual Time'].fillna(df_lookahea
 df_lookahead['Cumulative Projection Time'] = df_lookahead['Projection Time'].cumsum().shift(fill_value=0)
 df_lookahead['Projection Start Time'] = df_lookahead['Cumulative Projection Time'].apply(lambda x: lookahead_start_time + pd.Timedelta(hours=x))
 df_lookahead['Projection End Time'] = df_lookahead['Projection Start Time'] + pd.to_timedelta(df_lookahead['Projection Time'], unit='hours')
+
+# Generate performance tracker grouped by well.
+grouped_df = df_lookahead.groupby(['Well Name', 'Phase Code', 'Phase']).agg(
+    Projection_Start_Time=('Projection Start Time', 'first'),
+    AFE_Time=('AFE Time', 'sum'),
+    Actual_Time=('Actual Time', 'sum'))
+grouped_df = grouped_df.reset_index()
+grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time',
+                                'AFE_Time': 'AFE Time',
+                                'Actual_Time': 'Actual Time'}, axis='columns')
