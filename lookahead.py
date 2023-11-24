@@ -37,9 +37,9 @@ def read_lookahead():
     sheet_name = 'Drilling Input'
     table_name = 'LookaheadTable'
     wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
-    sheet = wb[sheet_name]
-    lookup_table = sheet.tables[table_name]
-    data = sheet[lookup_table.ref]
+    ws = wb[sheet_name]
+    lookup_table = ws.tables[table_name]
+    data = ws[lookup_table.ref]
     rows_list = [[col.value for col in row] for row in data]
     df = pd.DataFrame(data=rows_list[1:], index=None, columns=rows_list[0])
     return df
