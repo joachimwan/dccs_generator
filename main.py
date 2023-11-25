@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from settings import *
-from lookahead import *
+# from lookahead import *
+from OCS import *
 
 # C:\Users\Joachim.Wan\Desktop\OpsProject\dccs_generator
 # Proposed workflow:
