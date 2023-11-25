@@ -61,6 +61,6 @@ def read_OCS(excel_file_path):
 #     df = df.append(data)
 
 # Load all OCS into a dataframe.
-df = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
+df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
 
-print(df)
+print(df_OCS)
