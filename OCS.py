@@ -19,7 +19,12 @@
 # - WBS Number
 
 # Charging mechanism:
-# - 'XX' unit/day 'daily/weekly/monthly' from 'start date/Phase' to 'end date/Phase' or 'XX occurrences'
+# - 'XX' unit/day 'daily/weekly/monthly' from 'start date/Phase' to 'end date/Phase'
+# - 1 unit/day recur daily from start phase 50 to end phase 50 for minimum 7 days
+# - 1 unit/day recur weekly on Monday Wednesday from start date 20238/01/01 to end date 2024/01/01 for maximum 10 days
+# - 1 unit/day recur monthly on day 3 from start date 2023/01/01 to end date 2024/01/01
+# - 1.2 unit/day on start date 2023/01/03
+# - 0.5 unit/day on end phase 15
 
 import pandas as pd
 import openpyxl
@@ -54,13 +59,38 @@ def read_OCS(excel_file_path):
         print(f"Error on {excel_file_path} :", e)
 
 
-# # Loop through all files in the folder and load workbooks into dataframes.
-# df = pd.DataFrame()
-# for f in OCS_DIR.iterdir():
-#     data = read_OCS(f)
-#     df = df.append(data)
+def create_instruction_dict(text):
+    instruction_dict = {}
+    text = text.split()
+    instruction_dict['Number'] = text[0]
+    if text[2] == 'recur':
+        instruction_dict['Recurrence'] = text[2] + " " + text[3]
+        if text[3] == 'weekly':
+            days_of_week = {'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'}
+            instruction_dict['Setting'] = set(days_of_week.intersection(text))
+        elif text[3] == 'monthly':
+            instruction_dict['Setting'] = text[6]
+        else:  # Recur daily.
+            instruction_dict['Setting'] = None
+        from_index = text.index('from')
+        instruction_dict['Start Type'] = text[from_index+1] + " " + text[from_index+2]
+        instruction_dict['Start'] = text[from_index+3]
+        instruction_dict['End Type'] = text[from_index+5] + " " + text[from_index+6]
+        instruction_dict['End'] = text[from_index+7]
+        try:
+            instruction_dict['Min Max'] = text[from_index+9]
+            instruction_dict['Occurrence'] = text[from_index+10]
+        except Exception as e:
+            print("Error:", e)
+    else:  # No recurrence.
+        instruction_dict['Start Type'] = text[3] + " " + text[4]
+        instruction_dict['Start'] = text[5]
+    return instruction_dict
 
-# Load all OCS into a dataframe.
+
+# Load all OCS into a dataframe. Sorted by filename.
 df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
 
-print(df_OCS)
+# Generate placeholder columns.
+df_OCS['Total Cost (USD)'] = None
+df_OCS['Total Units'] = None

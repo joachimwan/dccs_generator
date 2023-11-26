@@ -24,6 +24,8 @@
 
 import pandas as pd
 import openpyxl
+from lookahead import *
+from OCS import *
 
 # Proposed workflow:
 # - For each DCCS file in the DCCS folder, read each DCCS file.
@@ -41,3 +43,7 @@ import openpyxl
 # - The latest DCCS (to check for manual inputs)
 # - OpenWells for rig rates and NPT information
 # - How about aviation charges...?
+
+
+def some_function():
+    pass

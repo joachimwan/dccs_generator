@@ -57,9 +57,7 @@ df_lookahead = df_lookahead[['Start Time', 'Well Name', 'Phase Code', 'Phase', '
                              'Actual Time']]
 
 # Identify number of unique wells in the lookahead.
-for well in df_lookahead['Well Name'].unique():
-    if well is not None:
-        pass
+lookahead_wells = {well for well in df_lookahead['Well Name'].unique() if well is not None}
 
 # Identify lookahead start time.
 lookahead_start_time = df_lookahead['Start Time'].iloc[0]
@@ -73,9 +71,11 @@ df_lookahead['Projection End Time'] = df_lookahead['Projection Start Time'] + pd
 # Generate performance tracker grouped by well.
 grouped_df = df_lookahead.groupby(['Well Name', 'Phase Code', 'Phase']).agg(
     Projection_Start_Time=('Projection Start Time', 'first'),
+    Projection_End_Time=('Projection End Time', 'last'),
     AFE_Time=('AFE Time', 'sum'),
     Actual_Time=('Actual Time', 'sum'))
 grouped_df = grouped_df.reset_index()
 grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time',
+                                'Projection_End_Time': 'Projection End Time',
                                 'AFE_Time': 'AFE Time',
                                 'Actual_Time': 'Actual Time'}, axis='columns')
