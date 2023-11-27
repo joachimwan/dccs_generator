@@ -68,6 +68,9 @@ df_lookahead['Cumulative Projection Time'] = df_lookahead['Projection Time'].cum
 df_lookahead['Projection Start Time'] = df_lookahead['Cumulative Projection Time'].apply(lambda x: lookahead_start_time + pd.Timedelta(hours=x))
 df_lookahead['Projection End Time'] = df_lookahead['Projection Start Time'] + pd.to_timedelta(df_lookahead['Projection Time'], unit='hours')
 
+# Identify projected lookahead end time.
+lookahead_end_time = df_lookahead['Projection End Time'].iloc[-1]
+
 # Generate performance tracker grouped by well.
 grouped_df = df_lookahead.groupby(['Well Name', 'Phase Code', 'Phase']).agg(
     Projection_Start_Time=('Projection Start Time', 'first'),
@@ -79,3 +82,24 @@ grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time'
                                 'Projection_End_Time': 'Projection End Time',
                                 'AFE_Time': 'AFE Time',
                                 'Actual_Time': 'Actual Time'}, axis='columns')
+
+
+# Calculate intersection of two datetime ranges in number of days.
+def calc_intersection(start1, end1, start2, end2):
+    start = max(start1, start2)
+    end = min(end1, end2)
+    return (end-start).total_seconds()/(60*60*24) if start < end else 0
+
+
+# Helper function.
+def calc_days_in_date(date):
+    grouped_df['Days in Date'] = grouped_df.apply(lambda row: calc_intersection(row['Projection Start Time'], row['Projection End Time'], date, date+pd.Timedelta(days=1)), axis=1)
+    for well in lookahead_wells:
+        df_date_well.loc[df_date_well['Date'] == date, well] = grouped_df[grouped_df['Well Name'] == well]['Days in Date'].sum()
+    grouped_df.drop(['Days in Date'], axis=1, inplace=True)
+
+
+# Generate operational days by well.
+df_date_well = pd.DataFrame({'Date': pd.date_range(start=lookahead_start_time.date(), end=lookahead_end_time.date())})
+df_date_well.update({well: None} for well in lookahead_wells)
+df_date_well.apply(lambda row: calc_days_in_date(date=row['Date']), axis=1)
