@@ -52,5 +52,5 @@ def some_function():
 df_DCCS = df_OCS.copy(deep=True)
 df_DCCS['Total Cost (USD)'] = None
 df_DCCS['Total Units'] = None
-for date in pd.date_range(start=lookahead_start_time.date(), end=lookahead_end_time.date()):
+for date in well_date_range:
     df_DCCS[date.date()] = None

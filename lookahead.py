@@ -17,7 +17,6 @@ import pandas as pd
 import openpyxl
 from settings import *
 
-
 # Proposed workflow:
 # - Identify latest lookahead. Ensure lookahead is a named table.
 # - Use try-except to verify lookahead validity and raise errors.
@@ -100,6 +99,9 @@ grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time'
                                 'Projection_End_Time': 'Projection End Time',
                                 'AFE_Time': 'AFE Time',
                                 'Actual_Time': 'Actual Time'}, axis='columns')
+
+# Merge WBS onto performance tracker.
+grouped_df = grouped_df.merge(df_AFE_WBS, how='left')
 
 # Generate day fraction per well phase.
 for date in well_date_range:

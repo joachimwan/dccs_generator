@@ -2,7 +2,7 @@
 
 # OCS headers:
 # - Description
-# - SAP Element Number
+# - SAP Element Number (not required)
 # - Quantity
 # - Unit of Measure
 # - Estimated Duration
@@ -11,12 +11,12 @@
 # - Total Price
 
 # Metadata:
-# - Contract Title
-# - Contract Number
-# - SAP OA Number
+# - Contract Title (not required)
+# - Contract Number (not required)
+# - SAP OA Number (not required)
 # - OCS Number
-# - Well Name (can be 'Not assigned')
-# - WBS Number (can be 'Not assigned')
+# - Well Name
+# - WBS Number (if not assigned, generate for each well)
 
 # Charging mechanism:
 # - 'XXX' unit/day from 'start date to end date' or for [list of 'Well-Phase'] for max XXX occurrences
@@ -65,40 +65,57 @@ def read_OCS(excel_file_path):
         df['Well Name'] = ws['B5'].value
         df['OCS Number'] = ws['B4'].value
         df['WBS Number'] = ws['B6'].value
+        df['File Name'] = excel_file_path.name
         wb.close()
         return df
     except Exception as e:
         print(f"Error on {excel_file_path} :", e)
 
 
-def create_instruction_dict(text):
-    instruction_dict = {}
-    text = text.split()
-    instruction_dict['Number'] = text[0]
-    if text[2] == 'recur':
-        instruction_dict['Recurrence'] = text[2] + " " + text[3]
-        if text[3] == 'weekly':
-            days_of_week = {'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'}
-            instruction_dict['Setting'] = set(days_of_week.intersection(text))
-        elif text[3] == 'monthly':
-            instruction_dict['Setting'] = text[6]
-        else:  # Recur daily.
-            instruction_dict['Setting'] = None
-        from_index = text.index('from')
-        instruction_dict['Start Type'] = text[from_index+1] + " " + text[from_index+2]
-        instruction_dict['Start'] = text[from_index+3]
-        instruction_dict['End Type'] = text[from_index+5] + " " + text[from_index+6]
-        instruction_dict['End'] = text[from_index+7]
-        try:
-            instruction_dict['Min Max'] = text[from_index+9]
-            instruction_dict['Occurrence'] = text[from_index+10]
-        except Exception as e:
-            print("Error:", e)
-    else:  # No recurrence.
-        instruction_dict['Start Type'] = text[3] + " " + text[4]
-        instruction_dict['Start'] = text[5]
-    return instruction_dict
+def some_function():
+    pass
+
+
+# def create_instruction_dict(text):
+#     instruction_dict = {}
+#     text = text.split()
+#     instruction_dict['Number'] = text[0]
+#     if text[2] == 'recur':
+#         instruction_dict['Recurrence'] = text[2] + " " + text[3]
+#         if text[3] == 'weekly':
+#             days_of_week = {'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'}
+#             instruction_dict['Setting'] = set(days_of_week.intersection(text))
+#         elif text[3] == 'monthly':
+#             instruction_dict['Setting'] = text[6]
+#         else:  # Recur daily.
+#             instruction_dict['Setting'] = None
+#         from_index = text.index('from')
+#         instruction_dict['Start Type'] = text[from_index+1] + " " + text[from_index+2]
+#         instruction_dict['Start'] = text[from_index+3]
+#         instruction_dict['End Type'] = text[from_index+5] + " " + text[from_index+6]
+#         instruction_dict['End'] = text[from_index+7]
+#         try:
+#             instruction_dict['Min Max'] = text[from_index+9]
+#             instruction_dict['Occurrence'] = text[from_index+10]
+#         except Exception as e:
+#             print("Error:", e)
+#     else:  # No recurrence.
+#         instruction_dict['Start Type'] = text[3] + " " + text[4]
+#         instruction_dict['Start'] = text[5]
+#     return instruction_dict
 
 
 # Load all OCS into a dataframe. Sorted by filename.
 df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
+
+# Generate OCS rows per WBS for each Tariff (i.e. no WBS Number).
+for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
+    for well in df_AFE_WBS['Well Name'].unique():
+        for wbs in df_AFE_WBS[df_AFE_WBS['Well Name'] == well]['Primary WBS'].unique():
+            row['WBS Number'] = wbs
+            row['Well Name'] = well
+            row['Description'] = row['Description'] + " / " + row['Well Name'] + " / " + row['WBS Number']
+            df_OCS = pd.concat([df_OCS, row.to_frame().T], ignore_index=True)
+
+df_OCS.dropna(subset=['WBS Number'], inplace=True)
+df_OCS.sort_values(by=['File Name', 'Item Number'], inplace=True, ignore_index=True)
