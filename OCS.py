@@ -15,16 +15,25 @@
 # - Contract Number
 # - SAP OA Number
 # - OCS Number
-# - Well Name
-# - WBS Number
+# - Well Name (can be 'Not assigned')
+# - WBS Number (can be 'Not assigned')
 
 # Charging mechanism:
-# - 'XX' unit/day 'daily/weekly/monthly' from 'start date/Phase' to 'end date/Phase'
-# - 1 unit/day recur daily from start phase 50 to end phase 50 for minimum 7 days
-# - 1 unit/day recur weekly on Monday Wednesday from start date 20238/01/01 to end date 2024/01/01 for maximum 10 days
-# - 1 unit/day recur monthly on day 3 from start date 2023/01/01 to end date 2024/01/01
-# - 1.2 unit/day on start date 2023/01/03
-# - 0.5 unit/day on end phase 15
+# - 'XXX' unit/day from 'start date to end date' or for [list of 'Well-Phase'] for max XXX occurrences
+# - 'XXX' unit/day for [list of 'Well-Phase'] for max XXX occurrences
+# - 'XXX' unit/day on 'date'
+# - 'XXX' unit/day on start/end of 'Well Name' phase 'Phase Code'
+# - Rig rates: Charge 1 daily from 'start date to end date' or for [list of 'Well-Phase'] (may need Manual input)
+# - Tariffs (e.g. ROE, Overhead): Charge 1 daily for [list of 'Well-Phase']
+# - Tariffs (e.g. RTOC, LMP, Vessels): Charge 1 daily from 'start date' to 'end date'
+# - Tariffs (e.g. Insurance): Lump sum charges
+# - Aviation: Charge XXX on chopper days (or Manual input)
+# - Consolidation for each OCS/Tariff: Manual input
+# - Daily mud cost: Manual input
+# - Lump sum charges: Charge XXX on 'start Well-Phase'
+# - Installed equipment: Charge XXX on 'end Well-Phase'
+# - Personnel and equipment rental: Charge XXX daily for [list of 'Well-Phase'] for max XXX occurrences
+# - Some are specific to Well-Phase e.g. DD or TRS, some are continuous e.g. Mud logging or SCE rentals
 
 import pandas as pd
 import openpyxl
@@ -34,11 +43,13 @@ from settings import *
 # - For each OCS file in the OCS folder, read each OCS file.
 # - Use try-except to verify OCS validity and raise errors.
 # - Detect revisions and ensure revision does not impact charged items before Today.
-# -
+# - Parse information from charging mechanisms.
+# - Generate OCS Number against WBS Number against Well Name.
 
 # Proposed verification:
 # - All required fields are present, e.g. OCS Number, WBS Number.
 # - WBS Number and Well Name (if present) are correct.
+# - All OCS has unique OCS Number.
 
 
 def read_OCS(excel_file_path):
@@ -54,6 +65,7 @@ def read_OCS(excel_file_path):
         df['Well Name'] = ws['B5'].value
         df['OCS Number'] = ws['B4'].value
         df['WBS Number'] = ws['B6'].value
+        wb.close()
         return df
     except Exception as e:
         print(f"Error on {excel_file_path} :", e)
@@ -90,7 +102,3 @@ def create_instruction_dict(text):
 
 # Load all OCS into a dataframe. Sorted by filename.
 df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
-
-# Generate placeholder columns.
-df_OCS['Total Cost (USD)'] = None
-df_OCS['Total Units'] = None

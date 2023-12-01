@@ -28,7 +28,6 @@ from lookahead import *
 from OCS import *
 
 # Proposed workflow:
-# - For each DCCS file in the DCCS folder, read each DCCS file.
 # - Identify latest DCCS.
 # - Use try-except to verify lookahead validity and raise errors.
 # -
@@ -47,3 +46,11 @@ from OCS import *
 
 def some_function():
     pass
+
+
+# Generate DCCS with placeholder columns.
+df_DCCS = df_OCS.copy(deep=True)
+df_DCCS['Total Cost (USD)'] = None
+df_DCCS['Total Units'] = None
+for date in pd.date_range(start=lookahead_start_time.date(), end=lookahead_end_time.date()):
+    df_DCCS[date.date()] = None
