@@ -22,6 +22,7 @@
 # - PO number
 # - WBS number
 
+import re
 import pandas as pd
 import openpyxl
 from lookahead import *
@@ -30,6 +31,7 @@ from OCS import *
 # Proposed workflow:
 # - Identify latest DCCS.
 # - Use try-except to verify lookahead validity and raise errors.
+# - Parse information from charging mechanisms.
 # -
 
 # Proposed verification:
@@ -44,8 +46,45 @@ from OCS import *
 # - How about aviation charges...?
 
 
-def some_function():
-    pass
+# Parse information from charging mechanisms.
+def create_instruction_dict(text, well):
+    instruction_dict = {}
+    text_split = text.split()
+    instruction_dict['Number'] = text_split[0]
+    instruction_dict['Recurrence'] = text_split[2]
+    if text_split[2] == 'from':
+        if re.findall(r'\b\d{4}/\d{2}/\d{2}\b', text_split[3]):
+            instruction_dict['Start'] = pd.to_datetime(text_split[3], format='%Y/%m/%d %H:%M:%S').date()
+        elif text_split[3] == 'start':
+            instruction_dict['Start'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[5])]['Projection Start Time'].iloc[0].date()
+        elif text_split[3] == 'end':
+            instruction_dict['Start'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[5])]['Projection End Time'].iloc[0].date()
+        to_index = text_split.index('to')
+        if re.findall(r'\b\d{4}/\d{2}/\d{2}\b', text_split[to_index+1]):
+            instruction_dict['End'] = pd.to_datetime(text_split[to_index+1], format='%Y/%m/%d %H:%M:%S').date()
+        elif text_split[to_index+1] == 'start':
+            instruction_dict['End'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[to_index+3])]['Projection Start Time'].iloc[0].date()
+        elif text_split[to_index+1] == 'end':
+            instruction_dict['End'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[to_index+3])]['Projection End Time'].iloc[0].date()
+        instruction_dict['Dict'] = None
+    elif text_split[2] == 'for':
+        instruction_dict['Start'] = None
+        instruction_dict['End'] = None
+        instruction_dict['Dict'] = eval(text[text.find('{'):text.find('}')+1])
+    else:  # No recurrence.
+        if re.findall(r'\b\d{4}/\d{2}/\d{2}\b', text_split[3]):
+            instruction_dict['Start'] = pd.to_datetime(text_split[3], format='%Y/%m/%d %H:%M:%S').date()
+        elif text_split[3] == 'start':
+            instruction_dict['Start'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[5])]['Projection Start Time'].iloc[0].date()
+        elif text_split[3] == 'end':
+            instruction_dict['Start'] = grouped_df[grouped_df['Well Name'] == well][grouped_df['Phase Code'] == int(text_split[5])]['Projection End Time'].iloc[0].date()
+        instruction_dict['End'] = None
+        instruction_dict['Dict'] = None
+    if text_split[-1] == 'occurrences':
+        instruction_dict['Occurrence'] = text_split[-2]
+    else:
+        instruction_dict['Occurrence'] = 99999
+    return instruction_dict
 
 
 # Generate DCCS with placeholder columns.
