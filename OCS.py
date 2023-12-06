@@ -77,10 +77,11 @@ df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x:
 for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
     for well in df_AFE_WBS['Well Name'].unique():
         for wbs in df_AFE_WBS[df_AFE_WBS['Well Name'] == well]['Primary WBS'].unique():
-            row['WBS Number'] = wbs
-            row['Well Name'] = well
-            row['Description'] = row['Description'] + " / " + row['Well Name'] + " / " + row['WBS Number']
-            df_OCS = pd.concat([df_OCS, row.to_frame().T], ignore_index=True)
+            _row = row.copy()
+            _row['WBS Number'] = wbs
+            _row['Well Name'] = well
+            _row['Description'] = _row['Description'] + " / " + well + " / " + wbs
+            df_OCS = pd.concat([df_OCS, _row.to_frame().T], ignore_index=True)
 
 # Remove original Tariff and sort OCS.
 df_OCS.dropna(subset=['WBS Number'], inplace=True)

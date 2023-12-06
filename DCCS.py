@@ -50,7 +50,7 @@ from OCS import *
 def create_instruction_dict(text, well):
     instruction_dict = {}
     text_split = text.split()
-    instruction_dict['Number'] = text_split[0]
+    instruction_dict['Number'] = float(text_split[0])
     instruction_dict['Recurrence'] = text_split[2]
     if text_split[2] == 'from':
         if re.findall(r'\b\d{4}/\d{2}/\d{2}\b', text_split[3]):
@@ -81,10 +81,37 @@ def create_instruction_dict(text, well):
         instruction_dict['End'] = None
         instruction_dict['Dict'] = None
     if text_split[-1] == 'occurrences':
-        instruction_dict['Occurrence'] = text_split[-2]
+        instruction_dict['Occurrence'] = float(text_split[-2])
     else:
         instruction_dict['Occurrence'] = 99999
     return instruction_dict
+
+
+# Auto charging function using parsed information.
+def auto_charge(row):
+    d = create_instruction_dict(row['Charging Mechanism'], row['Well Name'])
+    try:
+        if d['Recurrence'] == 'from':
+            # Filter by WBS, grouped by WBS, get value from date columns, multiply Number.
+            for date in pd.date_range(start=d['Start'], end=d['End']):
+                if date in well_date_range:
+                    row[date.date()] = d['Number']*grouped_df[grouped_df['Primary WBS']==row['WBS Number']].groupby(['Primary WBS']).sum().reset_index().iloc[0][date.date()]
+        elif d['Recurrence'] == 'for':
+            # Filter by Well Name and Phase Code in Dict, grouped_df.groupby(['Well Name', 'Primary WBS']).sum().reset_index(), multiply Number.
+            filtered_df = pd.DataFrame()
+            for well, phase_list in d['Dict'].items():
+                df_temp = grouped_df[(grouped_df['Well Name']==well)&(grouped_df['Phase Code'].isin(phase_list))].groupby(['Well Name', 'Primary WBS']).sum().reset_index()
+                filtered_df = pd.concat([filtered_df, df_temp], ignore_index=True)
+            for date in well_date_range:
+                row[date.date()] = d['Number']*filtered_df.sum().to_frame().T.iloc[0][date.date()]
+        else:  # Lump sum.
+            # If WBS Number exists on the Start date, charge Number.
+            if grouped_df[grouped_df['Primary WBS']==row['WBS Number']].groupby(['Primary WBS']).sum().reset_index().iloc[0][d['Start']]:
+                row[d['Start']] = d['Number']
+                print(f"Warning: Lump sum charge applied on row {row.name}: {row['Well Name']} for {d['Number']} units!")
+    except Exception as e:
+        print(f"Charging error on row {row.name}: {row['Charging Mechanism']}! Error: {e}")
+    return row
 
 
 # Generate DCCS with placeholder columns.
@@ -93,3 +120,6 @@ df_DCCS['Total Cost (USD)'] = None
 df_DCCS['Total Units'] = None
 for date in well_date_range:
     df_DCCS[date.date()] = None
+
+# Charge DCCS as per charging mechanisms.
+df_DCCS = df_DCCS.apply(lambda row: auto_charge(row), axis=1).replace({pd.np.nan: None, 0: None})
