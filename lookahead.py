@@ -13,7 +13,6 @@
 # Metadata:
 # - Start Time (the very first start time of the lookahead)
 
-import pandas as pd
 import openpyxl
 from settings import *
 

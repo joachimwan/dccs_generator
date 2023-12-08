@@ -34,14 +34,13 @@
 # - Personnel and equipment rental: Charge XXX daily for [list of 'Well-Phase'] for max XXX occurrences
 # - Some are specific to Well-Phase e.g. DD or TRS, some are continuous e.g. Mud logging or SCE rentals
 
-import pandas as pd
 import openpyxl
 from settings import *
 
 # Proposed workflow:
 # - For each OCS file in the OCS folder, read each OCS file.
 # - Use try-except to verify OCS validity and raise errors.
-# - Detect revisions and ensure revision does not impact charged items before Today.
+# TODO: - Detect OCS revisions.
 # - Generate OCS Number against WBS Number against Well Name.
 
 # Proposed verification:
@@ -85,4 +84,5 @@ for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
 
 # Remove original Tariff and sort OCS.
 df_OCS.dropna(subset=['WBS Number'], inplace=True)
+df_OCS['AFE Number'] = df_OCS.apply(lambda row: df_AFE_WBS.groupby('Well Name')['AFE Number'].first()[row['Well Name']], axis=1)
 df_OCS.sort_values(by=['File Name', 'Item Number'], inplace=True, ignore_index=True)
