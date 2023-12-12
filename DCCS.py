@@ -145,8 +145,9 @@ df_DCCS['Total Cost (USD)'] = df_DCCS.apply(lambda row: '={col1}{row1}*{col2}{ro
 df_DCCS['Daily Estimate (USD)'] = df_DCCS.apply(lambda row: '=({col1}{row1}=$C$6)*HLOOKUP($C$5,${col2}${row2}:${col3}{row1},ROW({col1}{row1})-{startrow},FALSE)*{col4}{row1}/IF({col5}{row1}="USD",1,$C$8)'.format(col1=get_column_letter(well_col_index), row1=row.name + start_row + 2, col2=get_column_letter(sum_col_index + 1), row2=start_row + 1, col3=get_column_letter(len(df_DCCS.columns)), col4=get_column_letter(price_col_index), col5=get_column_letter(price_col_index + 1), startrow=start_row), axis=1)
 
 # Export DCCS to EXCEL and write to cells.
-df_DCCS.to_excel('{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")), sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row + 1, sum_col_index))
-wb = openpyxl.load_workbook('{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
+DCCS_filename = BASE_DIR.joinpath('DCCS', '{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
+df_DCCS.to_excel(DCCS_filename, sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row + 1, sum_col_index))
+wb = openpyxl.load_workbook(DCCS_filename)
 ws = wb['DCCS']
 ws["B5"] = "Date"
 ws["B6"] = "Well"
@@ -161,5 +162,5 @@ except Exception as e:
 ws["C8"] = 4.5
 daily_col_index = df_DCCS.columns.get_loc('Daily Estimate (USD)')+1
 ws["C9"] = "=SUM({col1}{row1}:{col1}{row2})".format(col1=get_column_letter(daily_col_index), row1=start_row + 2, row2=start_row + 1 + len(df_DCCS.index))
-wb.save('{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
+wb.save(DCCS_filename)
 wb.close()
