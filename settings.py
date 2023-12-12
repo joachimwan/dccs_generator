@@ -11,7 +11,6 @@ OCS_DIR = BASE_DIR.joinpath('OCS')
 
 LATEST_DCCS_DIR = BASE_DIR.joinpath('DCCS', '230101_NTP_DCCS')
 
-# TODO: - Add AFE Number to this EXCEL.
 df_AFE_WBS = pd.read_excel('ProjectAFE.xlsx', index_col=0).reset_index()
 
 # Corrected to Malaysia's time zone.
