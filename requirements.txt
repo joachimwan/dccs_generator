@@ -1,0 +1,25 @@
+asgiref @ file:///home/conda/feedstock_root/build_artifacts/asgiref_1642912811357/work
+certifi==2022.5.18.1
+charset-normalizer==2.0.12
+dj-database-url==0.5.0
+Django @ file:///D:/bld/django_1643743453739/work
+django-cors-headers @ file:///home/conda/feedstock_root/build_artifacts/django-cors-headers_1641858895663/work
+django-crispy-forms==1.14.0
+django-on-heroku==1.1.2
+djangorestframework @ file:///home/conda/feedstock_root/build_artifacts/djangorestframework_1639677796037/work
+et-xmlfile==1.1.0
+gunicorn==20.1.0
+idna==3.3
+numpy==1.22.3
+openpyxl==3.0.9
+pandas==1.4.2
+psycopg2-binary==2.9.3
+python-dateutil==2.8.2
+pytz @ file:///home/conda/feedstock_root/build_artifacts/pytz_1633452062248/work
+requests==2.27.1
+six==1.16.0
+sqlparse @ file:///home/conda/feedstock_root/build_artifacts/sqlparse_1631317292236/work
+typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/typing_extensions_1644850595256/work
+tzdata @ file:///home/conda/feedstock_root/build_artifacts/python-tzdata_1635187324762/work
+urllib3==1.26.9
+whitenoise==6.1.0

@@ -45,6 +45,18 @@ from OCS import *
 # - OpenWells for rig rates and NPT information
 # - How about aviation charges...?
 
+# Auto charging mechanism formats:
+# - Date range:
+# - XX unit/day from (start/end phase XX)/(YYYY/mm/dd) to (start/end phase XX)/(YYYY/mm/dd) for maximum XX occurrences
+# - Well phase:
+# - XX unit/day for {'Well1': [Phase Code, Phase Code, Phase Code], 'Well2':[Phase Code]} for maximum XX occurrences
+# - Lump sum:
+# - XX unit/day on (start/end phase XX)/(YYYY/mm/dd)
+# Rules:
+# - Material WBS must be lump sum.
+# - Tariff max occurrences (if applied) must be less than target well phase duration.
+# - WBS must be present on target dates.
+
 
 # Parse information from charging mechanisms.
 def create_instruction_dict(text, well):
@@ -89,10 +101,16 @@ def create_instruction_dict(text, well):
 
 # Auto charging using parsed information.
 def auto_charge(row):
-    d = create_instruction_dict(row['Charging Mechanism'], row['Well Name'])
     grouped_df_by_WBS = grouped_df[grouped_df['Primary WBS'] == row['WBS Number']].groupby(['Primary WBS']).sum().reset_index()
     try:
-        if d['Recurrence'] == 'from':
+        d = create_instruction_dict(row['Charging Mechanism'], row['Well Name'])
+        if row['WBS Number'] in MATERIAL_WBS[row['Well Name']]:  # Material WBS.
+            # Only lump sum allowed, charge full amount on specified date.
+            row[d['Start']] = d['Number']
+            # Raise warning if well does not exist on specified date.
+            if not grouped_df[grouped_df['Well Name'] == row['Well Name']].groupby(['Well Name']).sum().reset_index().iloc[0][d['Start']]:
+                print(f"WARNING: Material charge applied on row {row.name}: {row['Well Name']}!")
+        elif d['Recurrence'] == 'from':  # Date range.
             # Filter by WBS, grouped by WBS, get value from date columns, multiply Number.
             for date in pd.date_range(start=d['Start'], end=d['End']):
                 if date in well_date_range:
@@ -100,22 +118,22 @@ def auto_charge(row):
                     d['Occurrence'] -= min(d['Number'] * grouped_df_by_WBS.iloc[0][date.date()], d['Occurrence'])
                     if d['Occurrence'] == 0:
                         break
-        elif d['Recurrence'] == 'for':
+        elif d['Recurrence'] == 'for':  # Every day during specified well phase.
             # Filter by Well Name and Phase Code in Dict, grouped by WBS, get value from date columns, multiply Number.
             filtered_df = pd.DataFrame()
             for well, phase_list in d['Dict'].items():
-                df_temp = grouped_df[(grouped_df['Well Name'] == well) & (grouped_df['Phase Code'].isin(phase_list))].groupby(['Well Name', 'Primary WBS']).sum().reset_index()
-                filtered_df = pd.concat([filtered_df, df_temp], ignore_index=True)
+                _temp = grouped_df[(grouped_df['Well Name'] == well) & (grouped_df['Phase Code'].isin(phase_list))].groupby(['Well Name', 'Primary WBS']).sum().reset_index()
+                filtered_df = pd.concat([filtered_df, _temp], ignore_index=True)
             for date in well_date_range:
-                row[date.date()] = min(d['Number'] * filtered_df.sum().to_frame().T.iloc[0][date.date()], d['Occurrence'])
-                d['Occurrence'] -= min(d['Number'] * filtered_df.sum().to_frame().T.iloc[0][date.date()], d['Occurrence'])
+                row[date.date()] = min(d['Number'] * filtered_df[filtered_df['Primary WBS'] == row['WBS Number']].sum().to_frame().T.iloc[0][date.date()], d['Occurrence'])
+                d['Occurrence'] -= min(d['Number'] * filtered_df[filtered_df['Primary WBS'] == row['WBS Number']].sum().to_frame().T.iloc[0][date.date()], d['Occurrence'])
                 if d['Occurrence'] == 0:
                     break
-        else:  # Lump sum.
+        elif d['Recurrence'] == 'on':  # Lump sum.
             # If WBS Number exists on the Start date, charge Number.
             if grouped_df_by_WBS.iloc[0][d['Start']]:
                 row[d['Start']] = d['Number']
-                print(f"Warning: Lump sum charge applied on row {row.name}: {row['Well Name']} for {d['Number']} units!")
+                # print(f"WARNING: Lump sum charge applied on row {row.name}: {row['Well Name']}: {row['Description']}!")
     except Exception as e:
         print(f"Charging error on row {row.name}: {row['Charging Mechanism']}! Error: {e}")
     return row
@@ -153,13 +171,13 @@ ws["B5"] = "Date"
 ws["B6"] = "Well"
 ws["B8"] = "USDMYR"
 ws["B9"] = "Daily"
-ws["C5"] = TODAY.date()
+ws["C5"] = TODAY.date()-pd.Timedelta(days=1)
 try:
-    ws["C6"] = grouped_df[grouped_df[TODAY.date()-pd.Timedelta(days=1)]!=0]['Well Name'].unique()[0]
+    ws["C6"] = grouped_df[grouped_df[TODAY.date()-pd.Timedelta(days=1)] != 0]['Well Name'].unique()[0]
 except Exception as e:
     print("Error:", e)
     ws["C6"] = grouped_df['Well Name'].unique()[0]
-ws["C8"] = 4.5
+ws["C8"] = USDMYR
 daily_col_index = df_DCCS.columns.get_loc('Daily Estimate (USD)')+1
 ws["C9"] = "=SUM({col1}{row1}:{col1}{row2})".format(col1=get_column_letter(daily_col_index), row1=start_row + 2, row2=start_row + 1 + len(df_DCCS.index))
 wb.save(DCCS_filename)

@@ -28,6 +28,7 @@ from settings import *
 # Proposed verification:
 # - Lookahead name, sheet name, and table name are as expected.
 # - All expected Phase Codes and Phases for each well are present.
+# - First phase of each well (i.e. phase 5) must have >1 day.
 # - Raise warning if there are gaps in Actual Time.
 
 
@@ -68,11 +69,7 @@ def calc_intersection(start1, end1, start2, end2):
 # Load workbook into dataframe.
 df_lookahead = read_lookahead()
 
-# Rename headers and remove unnecessary columns.
-df_lookahead = df_lookahead.rename({'GK WELL OPERATIONS LOOKAHEAD': 'Description',
-                                    'DWOP': 'AFE Time',
-                                    'DSV plan': 'DSV Time',
-                                    'Actual \nTime': 'Actual Time'}, axis='columns')
+# Remove unnecessary columns.
 df_lookahead = df_lookahead[['Start Time', 'Well Name', 'Phase Code', 'Phase', 'Description', 'AFE Time', 'DSV Time',
                              'Actual Time']]
 
@@ -100,7 +97,7 @@ grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time'
                                 'Actual_Time': 'Actual Time'}, axis='columns')
 
 # Merge WBS onto performance tracker.
-grouped_df = grouped_df.merge(df_AFE_WBS, how='left')
+grouped_df = grouped_df.merge(df_AFE_WBS.drop(['AFE Time'], axis=1), how='left')
 
 # Generate day fraction per well phase.
 for date in well_date_range:
