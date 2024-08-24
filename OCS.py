@@ -41,12 +41,15 @@ from settings import *
 # - For each OCS file in the OCS folder, read each OCS file.
 # - Use try-except to verify OCS validity and raise errors.
 # TODO: - Detect OCS revisions.
+# TODO: - Add 'vendor' to DCCS to aid allocation.
+# TODO: - Differentiate spread rate (and pseudo-spread) from lump sum.
 # - Generate OCS Number against WBS Number against Well Name.
 
 # Proposed verification:
 # - All required fields are present, e.g. OCS Number, WBS Number.
 # - WBS Number and Well Name (if present) are correct.
 # - All OCS has unique OCS Number.
+# - All Descriptions within the same OCS are unique.
 
 
 def read_OCS(excel_file_path):

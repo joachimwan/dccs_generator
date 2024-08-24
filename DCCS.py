@@ -22,6 +22,7 @@
 
 import re
 from openpyxl.utils.cell import get_column_letter
+from datetime import datetime
 from lookahead import *
 from OCS import *
 
@@ -30,8 +31,7 @@ from OCS import *
 # - Use try-except to verify lookahead validity and raise errors.
 # - Parse information from charging mechanisms.
 # - Auto charging using parsed information.
-# TODO: - Create UID for each line item.
-# TODO: - Handle manual inputs before Today.
+# - Handle manual inputs before Today.
 # TODO: - Handle consolidation especially different well from Today.
 
 # Proposed verification:
@@ -42,7 +42,7 @@ from OCS import *
 # - All OCS and revisions
 # - All Tariffs and consolidation
 # - The latest DCCS (to check for manual inputs)
-# - OpenWells for rig rates and NPT information
+# - OpenWells for rig rates and NPT information...?
 # - How about aviation charges...?
 
 # Auto charging mechanism formats:
@@ -139,34 +139,91 @@ def auto_charge(row):
     return row
 
 
+def read_DCCS():
+    try:
+        excel_file_path = LATEST_DCCS_DIR
+        sheet_name = 'DCCS'
+        wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
+        sheet = wb[sheet_name]
+        sheet.delete_rows(1, 10)
+        rows_list = [row for row in sheet.iter_rows(values_only=True)]
+        df = pd.DataFrame(data=rows_list[1:], index=None, columns=rows_list[0])
+        wb.close()
+        return df
+    except Exception as e:
+        print(f"Error:", e)
+
+
+# Handle manual inputs before Today.
+def update_manual_inputs(df_old, df_new):
+    df_one = df_old.copy(deep=True)
+    df_two = df_new.copy(deep=True)
+    # Get all column names before Description.
+    column_list = list(df_one.columns[:df_one.columns.get_loc('Description')+1])
+    # Set index as UID for both dataframes.
+    df_one.set_index(column_list, inplace=True)
+    df_two.set_index(column_list, inplace=True)
+    # Define cut-off date for manual inputs from old dataframe.
+    cutoff_date = TODAY  # Or custom date e.g. datetime(2024, 5, 1).
+    # Convert datetime to date.
+    df_one.columns = [col.date() if isinstance(col, (datetime, pd.Timestamp)) else col for col in df_one.columns]
+    # Get all date columns before (not including) cut-off date.
+    date_columns = [col for col in df_two.columns if pd.to_datetime(col, errors='coerce') < cutoff_date]
+    # Update new dataframe with old dataframe for dates before cut-off date.
+    df_two.update(df_one[date_columns])
+    df_two.reset_index(inplace=True)
+    return df_two
+
+
 # Generate DCCS with placeholder columns.
 df_DCCS = df_OCS.copy(deep=True)
 df_DCCS['Daily Estimate (USD)'] = None
 df_DCCS['Total Cost (USD)'] = None
 df_DCCS['Total Units'] = None
-df_DCCS = df_DCCS[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'AFE Number', 'Cost Group', 'Description',
-                   'Daily Estimate (USD)', 'SAP Unit Price', 'Currency', 'Unit of Measure', 'Charging Mechanism',
-                   'Total Cost (USD)', 'Total Units']]
+df_DCCS = df_DCCS[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'AFE Number', 'Cost Group', 'Item Number',
+                   'Description', 'Daily Estimate (USD)', 'SAP Unit Price', 'Currency', 'Unit of Measure',
+                   'Charging Mechanism', 'Total Cost (USD)', 'Total Units']]
 for date in well_date_range:
     df_DCCS[date.date()] = None
 
 # Charge DCCS as per charging mechanisms.
 df_DCCS = df_DCCS.apply(lambda row: auto_charge(row), axis=1).replace({pd.np.nan: None, 0: None})
 
+# Handle manual inputs before Today.
+try:
+    df_old_DCCS = read_DCCS()
+    df_DCCS = update_manual_inputs(df_old_DCCS, df_DCCS)
+except Exception as e:
+    print("Error:", e)
+
 # Create EXCEL formulas.
 sum_col_index = df_DCCS.columns.get_loc('Total Units')+1
 price_col_index = df_DCCS.columns.get_loc('SAP Unit Price')+1
+description_col_index = df_DCCS.columns.get_loc('Description')+1
 well_col_index = df_DCCS.columns.get_loc('Well Name')+1
 start_row = 10
 df_DCCS['Total Units'] = df_DCCS.apply(lambda row: f'=SUM({get_column_letter(sum_col_index+1)}{row.name + start_row + 2}:{get_column_letter(len(df_DCCS.columns))}{row.name + start_row + 2})', axis=1)
 df_DCCS['Total Cost (USD)'] = df_DCCS.apply(lambda row: '={col1}{row1}*{col2}{row1}/IF({col3}{row1}="USD",1,$C$8)'.format(col1=get_column_letter(price_col_index), row1=row.name + start_row + 2, col2=get_column_letter(sum_col_index), col3=get_column_letter(price_col_index + 1)), axis=1)
 df_DCCS['Daily Estimate (USD)'] = df_DCCS.apply(lambda row: '=({col1}{row1}=$C$6)*HLOOKUP($C$5,${col2}${row2}:${col3}{row1},ROW({col1}{row1})-{startrow},FALSE)*{col4}{row1}/IF({col5}{row1}="USD",1,$C$8)'.format(col1=get_column_letter(well_col_index), row1=row.name + start_row + 2, col2=get_column_letter(sum_col_index + 1), row2=start_row + 1, col3=get_column_letter(len(df_DCCS.columns)), col4=get_column_letter(price_col_index), col5=get_column_letter(price_col_index + 1), startrow=start_row), axis=1)
 
-# Export DCCS to EXCEL and write to cells.
+# Export DCCS to EXCEL.
 DCCS_filename = BASE_DIR.joinpath('DCCS', '{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
 df_DCCS.to_excel(DCCS_filename, sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row + 1, sum_col_index))
+
+# Open EXCEL and configure formatting.
 wb = openpyxl.load_workbook(DCCS_filename)
 ws = wb['DCCS']
+ws.column_dimensions[get_column_letter(well_col_index)].width = 13
+ws.column_dimensions[get_column_letter(description_col_index)].width = 40
+for col_idx in range(sum_col_index + 1, ws.max_column + 1):
+    ws.column_dimensions[get_column_letter(col_idx)].width = 13
+    ws[f'{get_column_letter(col_idx)}{start_row+1}'].alignment = openpyxl.styles.Alignment(horizontal='left')
+    yellow_fill = openpyxl.styles.PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+    if (TODAY - ws[f'{get_column_letter(col_idx)}{start_row+1}'].value).days>0:
+        ws[f'{get_column_letter(col_idx)}{start_row+1}'].fill = yellow_fill
+ws.auto_filter.ref = f'A{start_row+1}:{get_column_letter(df_DCCS.shape[1])}{start_row+1}'
+
+# Write to cells and save workbook.
 ws["B5"] = "Date"
 ws["B6"] = "Well"
 ws["B8"] = "USDMYR"
