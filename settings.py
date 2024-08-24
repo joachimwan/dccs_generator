@@ -5,7 +5,7 @@ import pandas as pd
 
 BASE_DIR = Path.cwd()
 
-LATEST_LOOKAHEAD_DIR = BASE_DIR.joinpath('lookahead', '20240527_MLNGx2_NTP_Lookahead.xlsm')
+LATEST_LOOKAHEAD_DIR = BASE_DIR.joinpath('lookahead', '20240824_MLNGx2_NTP_Lookahead JW.xlsm')
 
 OCS_DIR = BASE_DIR.joinpath('OCS')
 
