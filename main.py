@@ -1,4 +1,4 @@
-from DCCS import *
+from performance_tracker import *
 
 # C:\Users\Joachim.Wan\Desktop\OpsProject\dccs_generator
 # Proposed workflow:
@@ -10,6 +10,12 @@ from DCCS import *
 # - Generate DCCS rows from validated OCS and tariffs.
 # - Generate charging instructions based on charging mechanisms and Lookahead (projected days).
 # - Generate charges based on manual inputs.
+
+'''
+numpy==1.22.3
+openpyxl==3.0.9
+pandas==1.4.2
+'''
 
 if __name__ == '__main__':
     try:

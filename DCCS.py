@@ -55,7 +55,7 @@ from OCS import *
 # Rules:
 # - Material WBS must be lump sum.
 # - Tariff max occurrences (if applied) must be less than target well phase duration.
-# - WBS must be present on target dates.
+# - Service WBS must be present on target dates.
 
 
 # Parse information from charging mechanisms.
@@ -133,7 +133,6 @@ def auto_charge(row):
             # If WBS Number exists on the Start date, charge Number.
             if grouped_df_by_WBS.iloc[0][d['Start']]:
                 row[d['Start']] = d['Number']
-                # print(f"WARNING: Lump sum charge applied on row {row.name}: {row['Well Name']}: {row['Description']}!")
     except Exception as e:
         print(f"Charging error on row {row.name}: {row['Charging Mechanism']}! Error: {e}")
     return row
@@ -208,26 +207,34 @@ df_DCCS['Daily Estimate (USD)'] = df_DCCS.apply(lambda row: '=({col1}{row1}=$C$6
 
 # Export DCCS to EXCEL.
 DCCS_filename = BASE_DIR.joinpath('DCCS', '{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
-df_DCCS.to_excel(DCCS_filename, sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row + 1, sum_col_index))
+with pd.ExcelWriter(DCCS_filename) as writer:
+    df_DCCS.to_excel(writer, sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row+1, sum_col_index))
 
-# Open EXCEL and configure formatting.
+# Open DCCS tab in EXCEL.
 wb = openpyxl.load_workbook(DCCS_filename)
 ws = wb['DCCS']
+
+# Configure formatting.
 ws.column_dimensions[get_column_letter(well_col_index)].width = 13
 ws.column_dimensions[get_column_letter(description_col_index)].width = 40
 for col_idx in range(sum_col_index + 1, ws.max_column + 1):
     ws.column_dimensions[get_column_letter(col_idx)].width = 13
     ws[f'{get_column_letter(col_idx)}{start_row+1}'].alignment = openpyxl.styles.Alignment(horizontal='left')
+    days_before_today = (TODAY - ws[f'{get_column_letter(col_idx)}{start_row+1}'].value).days
     yellow_fill = openpyxl.styles.PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-    if (TODAY - ws[f'{get_column_letter(col_idx)}{start_row+1}'].value).days>0:
+    if days_before_today > 0:
         ws[f'{get_column_letter(col_idx)}{start_row+1}'].fill = yellow_fill
+    if days_before_today == 6:
+        ws.column_dimensions.group(get_column_letter(sum_col_index+1), get_column_letter(col_idx), hidden=True)
 ws.auto_filter.ref = f'A{start_row+1}:{get_column_letter(df_DCCS.shape[1])}{start_row+1}'
 
-# Write to cells and save workbook.
+# Write to cells.
 ws["B5"] = "Date"
 ws["B6"] = "Well"
 ws["B8"] = "USDMYR"
-ws["B9"] = "Daily"
+ws["B9"] = "Total well cost (USD)"
+ws["O9"] = "Daily cost by well (USD)"
+ws["O9"].alignment = openpyxl.styles.Alignment(horizontal='right')
 ws["C5"] = TODAY.date()-pd.Timedelta(days=1)
 try:
     ws["C6"] = grouped_df[grouped_df[TODAY.date()-pd.Timedelta(days=1)] != 0]['Well Name'].unique()[0]
@@ -235,7 +242,17 @@ except Exception as e:
     print("Error:", e)
     ws["C6"] = grouped_df['Well Name'].unique()[0]
 ws["C8"] = USDMYR
-daily_col_index = df_DCCS.columns.get_loc('Daily Estimate (USD)')+1
-ws["C9"] = "=SUM({col1}{row1}:{col1}{row2})".format(col1=get_column_letter(daily_col_index), row1=start_row + 2, row2=start_row + 1 + len(df_DCCS.index))
+ws["C9"] = f'=SUM({get_column_letter(sum_col_index+1)}{start_row-1}:{get_column_letter(ws.max_column+1)}{start_row-1})'
+ws["C9"].number_format = '#,##0'
+for col_idx in range(sum_col_index+1, ws.max_column+1):
+    ws[f'{get_column_letter(col_idx)}{start_row-1}'] = '=SUMPRODUCT(${col1}${row1}:${col1}${row2}, 1/((--(${col2}${row1}:${col2}${row2}="USD"))*(1-$C$8)+$C$8),{col3}${row1}:{col3}${row2},--(${col4}${row1}:${col4}${row2}=$C$6))'.format(
+        col1=get_column_letter(price_col_index),
+        row1=start_row+2,
+        row2=start_row+1 + len(df_DCCS.index),
+        col2=get_column_letter(price_col_index+1), col3=get_column_letter(col_idx),
+        col4=get_column_letter(well_col_index))
+    ws[f'{get_column_letter(col_idx)}{start_row-1}'].number_format = '#,##0.00'
+
+# Save workbook.
 wb.save(DCCS_filename)
 wb.close()
