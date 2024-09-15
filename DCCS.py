@@ -138,15 +138,15 @@ def auto_charge(row):
     return row
 
 
-def read_DCCS():
+def read_DCCS(excel_file_path=LATEST_DCCS_DIR):
     try:
-        excel_file_path = LATEST_DCCS_DIR
         sheet_name = 'DCCS'
         wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
         sheet = wb[sheet_name]
         sheet.delete_rows(1, 10)
         rows_list = [row for row in sheet.iter_rows(values_only=True)]
         df = pd.DataFrame(data=rows_list[1:], index=None, columns=rows_list[0])
+        df.columns = [col.date() if isinstance(col, (datetime, pd.Timestamp)) else col for col in df.columns]
         wb.close()
         return df
     except Exception as e:
@@ -163,11 +163,11 @@ def update_manual_inputs(df_old, df_new):
     df_one.set_index(column_list, inplace=True)
     df_two.set_index(column_list, inplace=True)
     # Define cut-off date for manual inputs from old dataframe.
-    cutoff_date = TODAY  # Or custom date e.g. datetime(2024, 5, 1).
+    cutoff_date = TODAY - pd.Timedelta(days=2)  # Or custom date e.g. datetime(2024, 5, 1).
     # Convert datetime to date.
     df_one.columns = [col.date() if isinstance(col, (datetime, pd.Timestamp)) else col for col in df_one.columns]
     # Get all date columns before (not including) cut-off date.
-    date_columns = [col for col in df_two.columns if pd.to_datetime(col, errors='coerce') < cutoff_date]
+    date_columns = [col for col in df_one.columns if pd.to_datetime(col, errors='coerce') < cutoff_date]
     # Update new dataframe with old dataframe for dates before cut-off date.
     df_two.update(df_one[date_columns])
     df_two.reset_index(inplace=True)
@@ -205,13 +205,16 @@ df_DCCS['Total Units'] = df_DCCS.apply(lambda row: f'=SUM({get_column_letter(sum
 df_DCCS['Total Cost (USD)'] = df_DCCS.apply(lambda row: '={col1}{row1}*{col2}{row1}/IF({col3}{row1}="USD",1,$C$8)'.format(col1=get_column_letter(price_col_index), row1=row.name + start_row + 2, col2=get_column_letter(sum_col_index), col3=get_column_letter(price_col_index + 1)), axis=1)
 df_DCCS['Daily Estimate (USD)'] = df_DCCS.apply(lambda row: '=({col1}{row1}=$C$6)*HLOOKUP($C$5,${col2}${row2}:${col3}{row1},ROW({col1}{row1})-{startrow},FALSE)*{col4}{row1}/IF({col5}{row1}="USD",1,$C$8)'.format(col1=get_column_letter(well_col_index), row1=row.name + start_row + 2, col2=get_column_letter(sum_col_index + 1), row2=start_row + 1, col3=get_column_letter(len(df_DCCS.columns)), col4=get_column_letter(price_col_index), col5=get_column_letter(price_col_index + 1), startrow=start_row), axis=1)
 
-# Export DCCS to EXCEL.
-DCCS_filename = BASE_DIR.joinpath('DCCS', '{}_NTP_DCCS.xlsx'.format(TODAY.date().strftime("%Y%m%d")))
-with pd.ExcelWriter(DCCS_filename) as writer:
+# Delete all empty columns.
+df_DCCS = df_DCCS.loc[:, ~((df_DCCS == 0) | (df_DCCS.isna()) | (df_DCCS == '')).all()]
+
+# Export to EXCEL.
+with pd.ExcelWriter(TODAY_DCCS_DIR) as writer:
     df_DCCS.to_excel(writer, sheet_name='DCCS', index=False, startrow=start_row, freeze_panes=(start_row+1, sum_col_index))
+    grouped_df.to_excel(writer, sheet_name='Day Fraction by Phase', index=False)
 
 # Open DCCS tab in EXCEL.
-wb = openpyxl.load_workbook(DCCS_filename)
+wb = openpyxl.load_workbook(TODAY_DCCS_DIR)
 ws = wb['DCCS']
 
 # Configure formatting.
@@ -222,8 +225,11 @@ for col_idx in range(sum_col_index + 1, ws.max_column + 1):
     ws[f'{get_column_letter(col_idx)}{start_row+1}'].alignment = openpyxl.styles.Alignment(horizontal='left')
     days_before_today = (TODAY - ws[f'{get_column_letter(col_idx)}{start_row+1}'].value).days
     yellow_fill = openpyxl.styles.PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-    if days_before_today > 0:
+    green_fill = openpyxl.styles.PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid')
+    if days_before_today > 1:
         ws[f'{get_column_letter(col_idx)}{start_row+1}'].fill = yellow_fill
+    if days_before_today == 1:
+        ws[f'{get_column_letter(col_idx)}{start_row + 1}'].fill = green_fill
     if days_before_today == 6:
         ws.column_dimensions.group(get_column_letter(sum_col_index+1), get_column_letter(col_idx), hidden=True)
 ws.auto_filter.ref = f'A{start_row+1}:{get_column_letter(df_DCCS.shape[1])}{start_row+1}'
@@ -253,6 +259,25 @@ for col_idx in range(sum_col_index+1, ws.max_column+1):
         col4=get_column_letter(well_col_index))
     ws[f'{get_column_letter(col_idx)}{start_row-1}'].number_format = '#,##0.00'
 
+# Open Day Fraction tab in EXCEL.
+ws = wb['Day Fraction by Phase']
+
+# Configure formatting.
+for i, header in enumerate(list(grouped_df.columns)):
+    if header == 'Planned Depth':
+        ws.freeze_panes = f'{get_column_letter(i + 2)}2'
+        for col_idx in range(i + 2, ws.max_column + 1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 13
+            ws[f'{get_column_letter(col_idx)}1'].alignment = openpyxl.styles.Alignment(horizontal='left')
+    if header == 'Phase':
+        ws.column_dimensions[get_column_letter(i + 1)].width = 40
+    if header in ['Projection Start Time', 'Projection End Time']:
+        ws.column_dimensions[get_column_letter(i + 1)].width = 20
+for cell in ws[get_column_letter(grouped_df.columns.get_loc('Days Ahead/Behind')+1)]:
+    if isinstance(cell.value, (int, float)):
+        cell.number_format = '0.00'
+ws.auto_filter.ref = f'A1:{get_column_letter(ws.max_column)}1'
+
 # Save workbook.
-wb.save(DCCS_filename)
+wb.save(TODAY_DCCS_DIR)
 wb.close()

@@ -32,8 +32,7 @@ from settings import *
 # - Raise warning if there are gaps in Actual Time.
 
 
-def read_lookahead():
-    excel_file_path = LATEST_LOOKAHEAD_DIR
+def read_lookahead(excel_file_path=LATEST_LOOKAHEAD_DIR):
     sheet_name = 'Drilling Input'
     table_name = 'LookaheadTable'
     wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
@@ -96,8 +95,14 @@ grouped_df = grouped_df.rename({'Projection_Start_Time': 'Projection Start Time'
                                 'AFE_Time': 'AFE Time',
                                 'Actual_Time': 'Actual Time'}, axis='columns')
 
+# Generate days ahead or behind.
+grouped_df['Days Ahead/Behind'] = grouped_df.apply(
+    lambda row: (row['Projection End Time'] - row['Projection Start Time']).total_seconds() / 86400 - row[
+        'AFE Time'] / 24, axis=1)
+
 # Merge WBS onto performance tracker.
 grouped_df = grouped_df.merge(df_AFE_WBS.drop(['AFE Time'], axis=1), how='left')
+grouped_df = grouped_df.sort_values(by=['Projection Start Time', 'Phase Code'])
 
 # Generate day fraction per well phase.
 for date in well_date_range:
