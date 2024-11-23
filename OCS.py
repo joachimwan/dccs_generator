@@ -78,7 +78,7 @@ df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x:
 # Generate OCS rows per WBS for each Tariff (i.e. no WBS Number).
 for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
     for well in df_AFE_WBS['Well Name'].unique() if pd.isna(row['Well Name']) else [row['Well Name']]:
-        for wbs in df_AFE_WBS[df_AFE_WBS['Well Name'] == well]['Primary WBS'].unique():
+        for wbs in df_AFE_WBS[df_AFE_WBS['Well Name'] == well]['Primary WBS'].unique():  # TODO: Change this to EVENT.
             _row = row.copy()
             _row['WBS Number'] = wbs
             _row['Well Name'] = well
@@ -87,5 +87,4 @@ for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
 
 # Remove original Tariff and sort OCS.
 df_OCS.dropna(subset=['WBS Number'], inplace=True)
-df_OCS['AFE Number'] = df_OCS.apply(lambda row: df_AFE_WBS.groupby('Well Name')['AFE Number'].first()[row['Well Name']], axis=1)
 df_OCS.sort_values(by=['File Name', 'Item Number'], inplace=True, ignore_index=True)

@@ -83,9 +83,9 @@ df_non_material_expanded = pd.merge(df_non_material, df_AFE_WBS[['Well Name', 'P
                                     how='left')
 # Concatenate the results.
 df_DCCS_expanded = pd.concat([df_non_material_expanded, df_material_expanded], ignore_index=True)
-df_DCCS_expanded = df_DCCS_expanded[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'AFE Number', 'Cost Group',
-                                     'Item Number', 'Description', 'SAP Unit Price', 'Currency', 'Unit of Measure',
-                                     'Phase Code', 'Phase']]
+df_DCCS_expanded = df_DCCS_expanded[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'Cost Group', 'Item Number',
+                                     'Description', 'SAP Unit Price', 'Currency', 'Unit of Measure', 'Phase Code',
+                                     'Phase']]
 
 # Generate day fraction per Phase Code for each date with non-zero day fraction.
 df_DCCS_expanded = pd.merge(df_DCCS_expanded,

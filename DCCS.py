@@ -179,9 +179,9 @@ df_DCCS = df_OCS.copy(deep=True)
 df_DCCS['Daily Estimate (USD)'] = None
 df_DCCS['Total Cost (USD)'] = None
 df_DCCS['Total Units'] = None
-df_DCCS = df_DCCS[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'AFE Number', 'Cost Group', 'Item Number',
-                   'Description', 'Daily Estimate (USD)', 'SAP Unit Price', 'Currency', 'Unit of Measure',
-                   'Charging Mechanism', 'Total Cost (USD)', 'Total Units']]
+df_DCCS = df_DCCS[['File Name', 'OCS Number', 'Well Name', 'WBS Number', 'Cost Group', 'Item Number', 'Description',
+                   'Daily Estimate (USD)', 'SAP Unit Price', 'Currency', 'Unit of Measure', 'Charging Mechanism',
+                   'Total Cost (USD)', 'Total Units']]
 for date in well_date_range:
     df_DCCS[date.date()] = None
 
