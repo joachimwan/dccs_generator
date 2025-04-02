@@ -1,6 +1,7 @@
 # Methods to read and verify Excel OCS.
 
 # OCS headers:
+# - Item Number
 # - Description
 # - SAP Element Number (not required)
 # - Quantity
@@ -9,6 +10,10 @@
 # - Currency
 # - SAP Unit Price
 # - Total Price
+# - Remarks
+# - Cost Group
+# - Event (e.g. DRO/ COM/ ABA) (if not assigned, generate for each well)
+# - Charging Mechanism
 
 # Metadata:
 # - Contract Title (not required)
@@ -16,13 +21,14 @@
 # - SAP OA Number (not required)
 # - OCS Number
 # - Well Name
-# - WBS Number (if not assigned, generate for each well)
+# - WBS Number
+# - Vendor
 
 # Charging mechanism:
 # - 'XXX' unit/day from 'start date to end date' for max XXX occurrences
 # - 'XXX' unit/day for [list of 'Well-Phase'] for max XXX occurrences
 # - 'XXX' unit/day on 'date'
-# - Rig rates: Charge 1 daily from 'start date to end date' or for [list of 'Well-Phase'] (may need Manual input)
+# - Rig rates: Charge 1 daily from 'start date to end date' or for [list of 'Well-Phase']
 # - Tariffs (e.g. ROE, Overhead): Charge 1 daily for [list of 'Well-Phase']
 # - Tariffs (e.g. RTOC, LMP, Vessels): Charge 1 daily from 'start date' to 'end date'
 # - Tariffs (e.g. Insurance): Lump sum charges
@@ -39,20 +45,19 @@ from settings import *
 
 # Proposed workflow:
 # - For each OCS file in the OCS folder, read each OCS file.
-# - Use try-except to verify OCS validity and raise errors.
+# TODO: - Use try-except to verify OCS validity and raise errors.
 # TODO: - Detect OCS revisions.
-# TODO: - Add 'vendor' to DCCS to aid allocation.
+# - Generate OCS rows for tariffs.
 # TODO: - Differentiate spread rate (and pseudo-spread) from lump sum.
-# - Generate OCS Number against WBS Number against Well Name.
 
 # Proposed verification:
-# - All required fields are present, e.g. OCS Number, WBS Number.
-# - WBS Number and Well Name (if present) are correct.
+# - All required fields are present, e.g. OCS Number, Event.
+# - Event and Well Name (if present) are correct.
 # - All OCS has unique OCS Number.
-# - All Descriptions within the same OCS are unique.
+# - All Item Number within the same OCS are unique.
 
 
-def read_OCS(excel_file_path):
+def read_OCS(excel_file_path):  # TODO: - Add 'Vendor' and 'Demand Category' to aid allocation.
     try:
         sheet_name = 'OCS Input'
         table_name = 'OCSTable'
@@ -75,16 +80,16 @@ def read_OCS(excel_file_path):
 # Load all OCS into a dataframe. Sorted by filename.
 df_OCS = pd.concat([read_OCS(f) for f in sorted(OCS_DIR.iterdir(), key=lambda x: x.name)], ignore_index=True)
 
-# Generate OCS rows per WBS for each Tariff (i.e. no WBS Number).
-for index, row in df_OCS[df_OCS['WBS Number'].isna()].iterrows():
-    for well in df_AFE_WBS['Well Name'].unique() if pd.isna(row['Well Name']) else [row['Well Name']]:
-        for wbs in df_AFE_WBS[df_AFE_WBS['Well Name'] == well]['Primary WBS'].unique():  # TODO: Change this to EVENT.
+# Generate OCS rows per Event for each Tariff (i.e. no specified Event).
+for index, row in df_OCS[df_OCS['Event'].isna()].iterrows():
+    for well in df_AFE['Well Name'].unique() if pd.isna(row['Well Name']) else [row['Well Name']]:
+        for event in df_AFE[df_AFE['Well Name'] == well]['Event'].unique():
             _row = row.copy()
-            _row['WBS Number'] = wbs
+            _row['Event'] = event
             _row['Well Name'] = well
-            _row['Description'] = _row['Description'] + " / " + well + " / " + wbs
+            _row['Description'] = _row['Description'] + " / " + well + " / " + event
             df_OCS = pd.concat([df_OCS, _row.to_frame().T], ignore_index=True)
 
 # Remove original Tariff and sort OCS.
-df_OCS.dropna(subset=['WBS Number'], inplace=True)
+df_OCS.dropna(subset=['Event'], inplace=True)
 df_OCS.sort_values(by=['File Name', 'Item Number'], inplace=True, ignore_index=True)
